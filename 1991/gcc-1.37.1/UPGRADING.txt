@@ -1,0 +1,76 @@
+
+
+The ports in here are rather old and should probably be upgraded
+to newer versions of GNU software.  Some notes are given here
+about how difficult that might be.
+
+gcc
+   The main problem in gcc is floating point.  In spite of stating that
+   no floating point instructions should be generated gcc still
+   generates a few (-msoft-float is not enough).  Gcc will execute
+   floating point instructions with -O so if a port hangs with -O it
+   is usually to do with floating point.
+
+   Later versions of gcc change the 386 definition and hence our
+   changes wont simply work with later versions of 1.xx but we
+   almost got 1.40 to work.  If you continue using Richard's 
+   387 emulator then 1.40 should work with little problem.  But
+   we did try to modify 1.40 so it generated no 387 instructions
+   but never confirmed that we did it (remember libraries have to be
+   recompiled with the new compiler so that no 387s instructions
+   exist).
+
+   gcc-2.xx produces significantly better code for 386s and can give
+   20% to 50% improvement in speed so a Minix version would be worth while.
+   Unfortunately gcc-2.xx generates more 387 instructions so either
+   Richard's emulator has to be extended or some other emulator is needed.
+   It is probably worth looking at Linux for this.  They have gcc-2.1
+   running and have a 387 emulator.
+
+   If you have a 387 things are a lot easier.  You must not apply the
+   patch for the kernel which disables the 387 (of course).  This should
+   be sufficient but you should also make Minix save/restore the 
+   387 registers when a context switch happens (and in longjmp and setjmp).
+
+emacs
+   The patches given here are for emacs-18.55 but I have had reports
+   that they almost work (minor fixable problems) with 18.58.
+
+bash
+   I haven't really tried very hard to port later vesions of bash.  When
+   I have looked at it the results almost work but often have minor
+   problems.  I don't think the solutions are difficult.
+
+gas
+   Shouldn't be any problem
+
+make
+   Shouldn't be any problem
+
+gdb
+   Gdb-4.xx is quite different from gdb-3.5 it would probably port
+   with help from our 3.5 port but would require some work.  The bfd
+   stuff in gdb-4.xx should work as the Minix port basically allows
+   BSD style .o files.
+
+binutils
+   We use an amazingly old version of ld.  I'm surprised that we found it.
+   This is by chance rather than design.  However later versions are quite 
+   different but they shouldn't be too difficult to work with.  We have tried
+   to be as BSD-like as possible.
+
+
+Although we no longer will be providing upgrades for Minix-386 ports
+of GNU stuff I am willing to answer questions about technical aspects.
+Although we still have Minix-386 on our machine I think it will be deleted
+soon as we now run 386bsd.
+
+Alan
+
+-----------------------------------------------------------------------
+Alan W Black                          80 South Bridge, Edinburgh, UK
+Dept of Artificial Intelligence       tel: (+44) -31 650 2713
+University of Edinburgh               email: awb@ed.ac.uk
+
+
+

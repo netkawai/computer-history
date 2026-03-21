@@ -1,0 +1,192 @@
+Path: utzoo!attcan!uunet!mcvax!hp4nl!botter!star.cs.vu.nl!...@cs.vu.nl
+From: a...@cs.vu.nl (Andy Tanenbaum)
+Newsgroups: comp.os.minix
+Subject: MINIX for the 386
+Message-ID: <1836@ast.cs.vu.nl>
+Date: 20 Dec 88 14:50:13 GMT
+Sender: a...@cs.vu.nl
+Reply-To: a...@cs.vu.nl (Andy Tanenbaum)
+Organization: VU Informatica, Amsterdam
+Lines: 73
+
+
+The subject of the 386 has come up several times recently.  It is my
+understanding that 1.3 should work on most vanilla 386 boxes.  However, the
+question remains about virtual memory, using protected mode, etc.  Some
+thoughts on the subject.
+
+It is very unlikely that MINIX 2.0 will go native on the x86 (x=2, 3).  It
+will be enough work just incorporating all the recent (and future) fixes,
+software etc. and having a go at POSIX compatibility.  My goal is still to
+keep it simple enough for students to understand it.
+
+With respect to others who want to hack it to use paging etc., I would suggest
+keeping the following firmly in mined.  The 386 developers are free to change
+everything everywhere and then distribute diffs against 1.3.  However, at some
+point in the future, 1.3 may be considered obsolete, and people will want
+diffs against 2.0.  The best way to make sure this is not a huge amount of
+work is to be conservative and change as little as possible, and make those
+changes as localized as possible.  For example, I would suggest forgetting
+about mapping files into the address space as it requires major changes to
+the file system.  Similarly, I would forget 16 of the 386's 48 address bits
+and just concentrate on making a virtual memory system that uses a single
+32-bit segment.  In effect, this simulates the 68020, and should make porting
+to 68020 (68030) systems straightforward.  I would also suggest really making
+an effort to resist changing anything that doesn't really have to be changed
+in the name of compatibility.  For example, the whole business of keeping
+track of memory in clicks is probably viable if you just set the click to the
+page size instead of 16 bytes.
+
+Files that have only a few changes should be marked #ifdef i386 in analogy
+with the current #ifdef i8088.  Avoid using #else, since #ifdef may be any of
+8088, 80386, Atari, and (eventually) Amiga.  Try to put large chunks of new
+code as procedures in a separate file.  Thus I can imagine some procedures
+becoming:
+
+xxx()
+{
+#ifdef i386
+   foobar()
+   return;
+#endif
+
+  ... original code ...
+}
+
+or something like that.  If whole files have to be replaced, just replace
+them and change the makefile.
+
+In short, I am making a plea for making an effort to take compatibility fairly
+seriously, and make as few changes as possible, and make these as cleanly as
+possible so that they can be transferred to 2.0 when the time comes.   In 
+principle I am willing to make the 386 stuff a permanent part of the system,
+but only if it fits in well.  The Atari FS and MM are examples of where this
+has happened.  The changes needed for the Atari are minor, so there is one
+FS that is good on PC and ST, and one MM for PC and ST.  This is not true of
+the kernel unfortunately.  Looking at the 1.3 FS and MM is a worthwhile
+exercise.
+
+The Vrije Universiteit is going to start working on a 386 compiler soon.
+Whether this will fit on the 8088 is as yet unknown.  We have an ANSI standard
+C compiler, and it definitely does not fit in the 64K + 64K model, so 2.0
+will continue to use the K&R-compatible compiler now in use, at least for the
+8088.
+
+The 286 has such an awful architecture that I am not inclined to cater to it
+at all, despite the fact that my own machine is a 286 and our department has
+a room full of them.
+
+Another thing: please stick to the original programming style in terms of
+layout, comments etc.  It looks funny to have mixed styles all over the place.
+I posted a document on MINIX-style some time ago and can send a copy to
+anyone who missed it.
+
+Andy Tanenbaum (a...@cs.vu.nl)
+Path: utzoo!utgpu!watmath!clyde!att!osu-cis!tut.cis.ohio-state.edu!bloom-beacon!think!ames!amdcad!sun!pitstop!sundc!seismo!uunet!munnari!otc!metro!ipso!runx!brucee
+From: bru...@runx.ips.oz (Bruce Evans)
+Newsgroups: comp.os.minix
+Subject: Re: Minix on 386 machines
+Message-ID: <1912@runx.ips.oz>
+Date: 27 Dec 88 05:31:22 GMT
+References: <5998@louie.udel.EDU> <15061@mimsy.UUCP>
+Reply-To: bru...@runx.OZ (Bruce Evans)
+Organization: RUNX  Un*x Timeshare. Sydney, Australia.
+Lines: 67
+
+I now have Minix working well in protected mode on the 386. The main limits
+are that segments are still 64K and no use is made of paging. I have some
+support for 32 bit executables and a 32 bit compiler to produce these
+(and itself) within the old limit of 64K text and 64K data. The 64K limit
+will eventually vanish when mpx88.s and klib88.s are rewritten and
+kernel/mm/fs are recompiled with 32 bit sizes.
+
+I plan to post the changes necessary for the 16 bit protected mode system
+sometime in January (after my RS232 stuff). These will provide increased
+system reliability and access to lots of memory. This should be valuable
+even without 32 bit sizes. The diffs may be a lot smaller than for RS232,
+but my kernel diffs are now 237K (counting RS232) and I'm concerned about 
+separating what's needed. Also, there is a fair amount of 386 assembler
+(much easier to work with than 286) which will have to be reduced to asld's
+level. (Does asld even have the '&', '|' C operators? I don't think it
+has #if.)
+
+The system retains the ability to run unprotected and configures this way
+automatically for 286's and 88's (apart from *wini.c). Because of this, I
+haven't worried much about putting #ifdef i80386 everywhere it belongs.
+The cost is 5 to 10K of unused code/data on an 88, and (very) few extra
+decisions at run time based on the 'processor' variable. My debugger
+(just posted) works on the protected mode and 32 bit code by switching to
+real mode, limited to addresses below 1M. Apart from this, real mode is not
+used so the system could be made to run 286 protected mode by modifying
+the TSS structure and eliminating the 386 assembler code.
+
+Techical details
+----------------
+
+Users   run at privilege 3
+Servers                  1
+Interrupt handlers       0
+
+Servers could be run at privilege 0 with less interrupt latency but the
+level switch gives a convenient stack frame (straight into proc table - less
+dangerous than on 88). I have an out of date version which does task
+switching. This is superficially nicer, perhaps not requiring any assembler
+in interrupt handlers, but what I wrote came out larger and slower (context
+switch 10-20% slower. Protected mode switching is already 10-20% slower).
+Minix centralizes the task switching, unlike the hardware.
+
+The process table has extra entries for FSREG, GSREG and all register slots
+are expanded to longs. The process table also holds the LDT register
+(constant after init) and a 2 entry LDT to hold segment descriptors for code
+and data.
+
+New kernel files:
+const386.h - addendum to const.h
+pm.c - mainly initialization of GDT entries and interrupt handler stubs (asm)
+
+Changed kernel files:
+mpx88.s - 8088 version already rewritten, new savep and restartp
+klib88.s - everywhere it uses physical addresses redone directly (flat 4G seg)
+system.c - fork and exec need to build segment descriptors. This is the main
+           dynamic difference and is "simple".
+proc.c - "unnecessary" large changes supported by mpx88.s
+clock.c - "unnecessary" small changes supported by mpx88.s
+others - minor changes in const.h, proc.h, type.h, dmp.c, main.c ...
+
+Changed mm/fs/lib files:
+A new magic number in the exec header for 386 executables has to be fetched
+and passed to the kernel so the 32-bit bit can be set if required. Both
+mm and fs have to ask kernel about memory allocation.
+
+Bruce Evans
+Internet: bru...@runx.ips.oz.au    UUCP: uunet!runx.ips.oz.au!brucee
+Path: utzoo!utgpu!watmath!clyde!att!osu-cis!tut.cis.ohio-state.edu!bloom-beacon!think!ames!amdcad!sun!pitstop!sundc!seismo!uunet!munnari!otc!metro!ipso!runx!brucee
+From: bru...@runx.ips.oz (Bruce Evans)
+Newsgroups: comp.os.minix
+Subject: Re: MINIX for the 386
+Message-ID: <1914@runx.ips.oz>
+Date: 27 Dec 88 05:39:43 GMT
+References: <1836@ast.cs.vu.nl>
+Reply-To: bru...@runx.OZ (Bruce Evans)
+Organization: RUNX  Un*x Timeshare. Sydney, Australia.
+Lines: 19
+
+I think my 386 port follows Andy's guidelines well. My diffs for mm are only
+6K, and for fs only 2K, and most of this is for stuff done non-portably in
+the first place. I don't think we have benefited enough from the Atari port
+though. Changing the click size from 16 to 256 didn't quite work since there
+is some segment arithmetic also using the magic 16.
+
+I would like to see a summary of PC/Atari Minix kernel differences (except
+drivers). And are the mm/fs/commands really much the same? There seem to
+be a lot of old PC bugs cropping up again in the Atari postings.
+
+The Minix coding style guidelines did not reach here. Please repost them.
+I have some problems with the style, mainly indenting a full tab stop at
+a time and contortions to avoid this going off the page, and the ugliness
+that has crept in from not updating comments with the code (ornate comments
+tend to produce larger diffs than code). Also, elle with linewrap wraps at
+column 78, messing up the formatting.
+
+Bruce Evans
+Internet: bru...@runx.ips.oz.au    UUCP: uunet!runx.ips.oz.au!brucee
